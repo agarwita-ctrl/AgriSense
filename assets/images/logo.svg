@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="AgriSense">
+  <!-- Water droplet holding a leaf: monitoring + irrigation in one mark -->
+  <path d="M24 4c7.5 9 12 15.2 12 21.2A12 12 0 0 1 12 25.2C12 19.2 16.5 13 24 4z" fill="#ffffff" opacity=".18"/>
+  <path d="M24 6.5c6.6 8.2 10.5 13.8 10.5 19A10.5 10.5 0 0 1 13.5 25.5c0-5.2 3.9-10.8 10.5-19z"
+        fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linejoin="round"/>
+  <path d="M24 30.5c0-5 3.2-8.6 8.2-9.4-.5 5.3-3.6 8.8-8.2 9.4z" fill="#ffffff"/>
+  <path d="M24 30.5c0-4.4-2.8-7.6-7.2-8.3.4 4.7 3.1 7.7 7.2 8.3z" fill="#ffffff" opacity=".7"/>
+  <path d="M24 36V27" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M14 41h20" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" opacity=".55"/>
+</svg>

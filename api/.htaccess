@@ -1,0 +1,42 @@
+# AgriSense - REST API rewrite rules
+#
+# Everything under /api/ is handled by index.php, so the endpoints keep the
+# clean shape documented in docs/API.md.
+
+Options -Indexes
+DirectoryIndex index.php
+
+# The handler classes are included by index.php and must never be requested
+# directly. They live in one directory that no endpoint is named after, so
+# the whole directory can be refused - simpler and harder to get wrong than
+# listing each class by file name.
+#
+# That separation is also what keeps /api/alerts working: while the handler
+# for it sat in a folder called alerts/, mod_dir saw a real directory and
+# answered the endpoint with a 301 to add a trailing slash, which breaks a
+# client that does not follow redirects and drops the body of a POST.
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    RewriteRule ^handlers(/|$) - [F,L]
+
+    # Some Apache/PHP combinations strip the Authorization header; put it
+    # back so Bearer keys keep working.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Anything that is not a real file becomes a route.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
+
+# Belt and braces for a server without mod_rewrite.
+<FilesMatch "^(ApiAuth|DeviceApi|SensorApi|IrrigationApi|AlertApi|ReportApi)\.php$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>

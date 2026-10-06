@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env
+.env.*
+Dockerfile
+.dockerignore
+docker-entrypoint.sh
+railway.json
+# Firmware carries Wi-Fi credentials and the device API key - never ship it.
+esp32
+# Database dumps contain user rows; import them into Railway MySQL instead.
+database

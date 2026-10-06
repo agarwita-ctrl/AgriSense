@@ -1,0 +1,317 @@
+/* =====================================================================
+   AgriSense - Application theme
+   Layered on top of Bootstrap 5. Agricultural palette: field greens with
+   soil and sky accents, generous touch targets for use on a phone in the
+   field, and a print stylesheet for the reports.
+   ===================================================================== */
+
+:root {
+    --ag-green-900: #14401c;
+    --ag-green-700: #1e6b2c;
+    --ag-green-600: #2e7d32;
+    --ag-green-500: #43a047;
+    --ag-green-100: #e5f3e7;
+    --ag-soil:      #8d6e4f;
+    --ag-sky:       #0288d1;
+    --ag-sun:       #f9a825;
+    --ag-danger:    #c62828;
+
+    --ag-ink:       #1f2a24;
+    --ag-muted:     #6b7c72;
+    --ag-line:      #dfe6e1;
+    --ag-surface:   #ffffff;
+    --ag-canvas:    #f4f7f4;
+
+    --ag-sidebar-w: 248px;
+    --ag-radius:    .75rem;
+    --ag-shadow:    0 1px 2px rgba(20, 64, 28, .06), 0 4px 16px rgba(20, 64, 28, .06);
+}
+
+body {
+    background: var(--ag-canvas);
+    color: var(--ag-ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: .95rem;
+}
+
+a { color: var(--ag-green-700); }
+a:hover { color: var(--ag-green-900); }
+
+/* --- Layout ---------------------------------------------------------- */
+
+.ag-shell { min-height: 100vh; }
+
+.ag-sidebar {
+    width: var(--ag-sidebar-w);
+    background: linear-gradient(180deg, var(--ag-green-900) 0%, #10331a 100%);
+    color: #dcecdf;
+    position: fixed;
+    top: 0; bottom: 0; left: 0;
+    overflow-y: auto;
+    z-index: 1040;
+}
+
+.ag-main {
+    margin-left: var(--ag-sidebar-w);
+    min-width: 0;
+}
+
+@media (max-width: 991.98px) {
+    .ag-sidebar { transform: translateX(-100%); transition: transform .2s ease; }
+    .ag-sidebar.show { transform: none; box-shadow: 0 0 40px rgba(0,0,0,.4); }
+    .ag-main { margin-left: 0; }
+}
+
+.ag-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,.45);
+    z-index: 1035; display: none;
+}
+.ag-backdrop.show { display: block; }
+
+/* --- Brand ----------------------------------------------------------- */
+
+.ag-brand {
+    display: flex; align-items: center; gap: .65rem;
+    padding: 1.15rem 1.1rem;
+    border-bottom: 1px solid rgba(255,255,255,.09);
+    color: #fff; text-decoration: none;
+}
+.ag-brand:hover { color: #fff; }
+.ag-brand-mark {
+    width: 38px; height: 38px; flex: 0 0 38px;
+    background: var(--ag-green-500);
+    border-radius: 11px;
+    display: grid; place-items: center;
+}
+.ag-brand-name { font-weight: 700; font-size: 1.12rem; line-height: 1.1; letter-spacing: .2px; }
+.ag-brand-sub  { font-size: .68rem; color: #9dc4a5; text-transform: uppercase; letter-spacing: .8px; }
+
+/* --- Navigation ------------------------------------------------------ */
+
+.ag-nav { padding: .75rem .6rem 2rem; }
+
+.ag-nav-heading {
+    font-size: .68rem; text-transform: uppercase; letter-spacing: .9px;
+    color: #7fa889; padding: 1rem .55rem .35rem;
+}
+
+.ag-nav .nav-link {
+    color: #c9e0ce;
+    border-radius: .55rem;
+    padding: .6rem .7rem;
+    display: flex; align-items: center; gap: .6rem;
+    font-weight: 500;
+}
+.ag-nav .nav-link:hover { background: rgba(255,255,255,.08); color: #fff; }
+.ag-nav .nav-link.active { background: var(--ag-green-600); color: #fff; }
+.ag-nav .nav-link svg { flex: 0 0 18px; opacity: .9; }
+.ag-nav .badge { margin-left: auto; }
+
+/* --- Topbar ---------------------------------------------------------- */
+
+.ag-topbar {
+    background: var(--ag-surface);
+    border-bottom: 1px solid var(--ag-line);
+    padding: .7rem 1.1rem;
+    position: sticky; top: 0; z-index: 1020;
+}
+
+.ag-page-title { font-size: 1.15rem; font-weight: 650; margin: 0; }
+
+/* --- Cards ----------------------------------------------------------- */
+
+.ag-card {
+    background: var(--ag-surface);
+    border: 1px solid var(--ag-line);
+    border-radius: var(--ag-radius);
+    box-shadow: var(--ag-shadow);
+}
+.ag-card-head {
+    padding: .85rem 1.1rem;
+    border-bottom: 1px solid var(--ag-line);
+    display: flex; align-items: center; gap: .75rem; flex-wrap: wrap;
+}
+.ag-card-title { font-size: .98rem; font-weight: 650; margin: 0; }
+.ag-card-body { padding: 1.1rem; }
+
+/* --- Metric cards ---------------------------------------------------- */
+
+.ag-metric {
+    background: var(--ag-surface);
+    border: 1px solid var(--ag-line);
+    border-left: 4px solid var(--ag-green-500);
+    border-radius: var(--ag-radius);
+    box-shadow: var(--ag-shadow);
+    padding: 1rem 1.1rem;
+    height: 100%;
+}
+.ag-metric-label {
+    font-size: .7rem; letter-spacing: .9px; text-transform: uppercase;
+    color: var(--ag-muted); font-weight: 650;
+    display: flex; align-items: center; gap: .4rem;
+}
+.ag-metric-value {
+    font-size: 2rem; font-weight: 700; line-height: 1.15; margin-top: .3rem;
+    font-variant-numeric: tabular-nums;
+}
+.ag-metric-value small { font-size: .95rem; font-weight: 600; color: var(--ag-muted); }
+.ag-metric-note { font-size: .78rem; color: var(--ag-muted); margin-top: .2rem; }
+
+.ag-metric.is-moisture { border-left-color: var(--ag-sky); }
+.ag-metric.is-temp     { border-left-color: var(--ag-sun); }
+.ag-metric.is-humidity { border-left-color: #26a69a; }
+.ag-metric.is-pump     { border-left-color: var(--ag-green-500); }
+.ag-metric.is-device   { border-left-color: var(--ag-soil); }
+.ag-metric.is-critical { border-left-color: var(--ag-danger); }
+
+/* A value carried over from an earlier reading because the newest one
+   failed - shown, but visibly not current. */
+.ag-stale { opacity: .55; }
+
+/* --- Per-probe readings ------------------------------------------------
+   Two chips, one per soil probe, shown under the combined average on
+   devices with two probes fitted. A dead probe (value === null) turns the
+   chip red rather than just greying it out - a stale card and a failed
+   probe are different problems and should not look the same. */
+.ag-probe-row { display: flex; gap: .5rem; margin-top: .55rem; flex-wrap: wrap; }
+.ag-probe-chip {
+    display: flex; align-items: baseline; gap: .3rem;
+    padding: .3rem .65rem;
+    border-radius: .55rem;
+    background: #e3f2fd;
+    border: 1px solid #b8ddf7;
+    font-size: .8rem;
+}
+.ag-probe-chip .ag-probe-label { color: var(--ag-sky); font-weight: 650; }
+.ag-probe-chip .ag-probe-value { font-weight: 700; font-variant-numeric: tabular-nums; }
+.ag-probe-chip .ag-probe-value.text-danger { color: var(--ag-danger); }
+
+/* --- Status pills ---------------------------------------------------- */
+
+.ag-pill {
+    display: inline-flex; align-items: center; gap: .35rem;
+    padding: .18rem .6rem;
+    border-radius: 999px;
+    font-size: .74rem; font-weight: 650;
+    border: 1px solid transparent;
+}
+.ag-pill-dot { width: .5rem; height: .5rem; border-radius: 50%; background: currentColor; }
+.ag-pill-on      { background: #e6f4ea; color: #1b5e20; border-color: #b7e0c0; }
+.ag-pill-off     { background: #eef1ef; color: #55645b; border-color: #dbe2dd; }
+.ag-pill-online  { background: #e6f4ea; color: #1b5e20; border-color: #b7e0c0; }
+.ag-pill-offline { background: #fdeaea; color: #b3261e; border-color: #f5c6c4; }
+.ag-pill-auto    { background: #e3f2fd; color: #01579b; border-color: #b8ddf7; }
+.ag-pill-manual  { background: #fff4e0; color: #925c00; border-color: #f7ddb0; }
+
+/* Slow pulse on a running pump so it is obvious at a glance. */
+@keyframes ag-pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+.ag-pulse .ag-pill-dot { animation: ag-pulse 1.4s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+    .ag-pulse .ag-pill-dot { animation: none; }
+}
+
+/* --- Live indicator -------------------------------------------------- */
+
+.ag-live {
+    display: inline-flex; align-items: center; gap: .4rem;
+    font-size: .75rem; color: var(--ag-muted);
+}
+.ag-live-dot {
+    width: .45rem; height: .45rem; border-radius: 50%;
+    background: var(--ag-green-500);
+}
+.ag-live.is-stale .ag-live-dot { background: var(--ag-danger); }
+
+/* --- Tables ---------------------------------------------------------- */
+
+.ag-table { margin: 0; }
+.ag-table thead th {
+    background: #f7faf7;
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .6px;
+    color: var(--ag-muted); font-weight: 650;
+    border-bottom: 1px solid var(--ag-line);
+    white-space: nowrap;
+}
+.ag-table tbody td { vertical-align: middle; }
+.ag-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.ag-table thead th a { color: inherit; text-decoration: none; white-space: nowrap; }
+.ag-table thead th a:hover { color: var(--ag-green-700); }
+
+.ag-empty { padding: 2.5rem 1rem; text-align: center; color: var(--ag-muted); }
+
+/* --- Charts ---------------------------------------------------------- */
+
+.ag-chart { position: relative; height: 260px; }
+.ag-chart-sm { height: 200px; }
+.ag-chart-lg { height: 320px; }
+
+/* --- Alerts ---------------------------------------------------------- */
+
+.ag-alert-item { display: flex; gap: .75rem; padding: .8rem 1.1rem; border-bottom: 1px solid var(--ag-line); }
+.ag-alert-item:last-child { border-bottom: 0; }
+.ag-alert-item.is-unread { background: #fbfdfb; }
+.ag-alert-bar { width: 3px; border-radius: 3px; flex: 0 0 3px; }
+.ag-alert-bar.sev-info     { background: var(--ag-sky); }
+.ag-alert-bar.sev-warning  { background: var(--ag-sun); }
+.ag-alert-bar.sev-critical { background: var(--ag-danger); }
+
+.ag-bell { position: relative; }
+.ag-bell .badge {
+    position: absolute; top: -.3rem; right: -.4rem;
+    font-size: .62rem; padding: .2rem .35rem;
+}
+.ag-notif-list { max-height: 22rem; overflow-y: auto; }
+
+/* --- Forms ----------------------------------------------------------- */
+
+.form-label { font-weight: 600; font-size: .85rem; }
+.form-text { font-size: .8rem; }
+.ag-field-help { color: var(--ag-muted); font-size: .8rem; }
+
+.ag-danger-zone {
+    border: 1px solid #f0c9c6;
+    border-radius: var(--ag-radius);
+    background: #fef7f6;
+}
+
+/* --- Buttons --------------------------------------------------------- */
+
+.btn-ag {
+    background: var(--ag-green-600); border-color: var(--ag-green-600); color: #fff;
+}
+.btn-ag:hover, .btn-ag:focus { background: var(--ag-green-700); border-color: var(--ag-green-700); color: #fff; }
+.btn-outline-ag { color: var(--ag-green-700); border-color: var(--ag-green-600); }
+.btn-outline-ag:hover { background: var(--ag-green-600); border-color: var(--ag-green-600); color: #fff; }
+
+/* Pump buttons are large: they are pressed on a phone, outdoors. */
+.ag-pump-controls .btn { min-height: 3rem; font-weight: 650; }
+
+/* --- Misc ------------------------------------------------------------ */
+
+.ag-key {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .82rem; word-break: break-all;
+}
+
+.ag-demo-badge {
+    background: #fff4e0; border: 1px solid #f7ddb0; color: #925c00;
+    border-radius: var(--ag-radius); padding: .6rem .9rem; font-size: .85rem;
+}
+
+.ag-progress { height: .5rem; background: #e8eee9; border-radius: 999px; overflow: hidden; }
+.ag-progress > div { height: 100%; background: var(--ag-sky); }
+
+/* --- Print ----------------------------------------------------------- */
+
+@media print {
+    .ag-sidebar, .ag-topbar, .ag-no-print, .btn, nav, .ag-backdrop { display: none !important; }
+    .ag-main { margin-left: 0 !important; }
+    body { background: #fff; font-size: 11pt; }
+    .ag-card, .ag-metric { box-shadow: none; border-color: #ccc; break-inside: avoid; }
+    .ag-chart { height: 220px; }
+    a[href]:after { content: ""; }
+    .ag-print-header { display: block !important; }
+}
+
+.ag-print-header { display: none; }
