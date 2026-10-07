@@ -19,6 +19,11 @@ RUN { \
     && a2enconf agrisense \
     && cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
+# Fail the build (with details) if Apache would not start, e.g. two MPMs.
+RUN echo "== MPM files ==" && ls -l /etc/apache2/mods-enabled | grep -i mpm; \
+    echo "== loaded MPM modules ==" && apache2ctl -M 2>&1 | grep -i mpm; \
+    apache2ctl configtest
+
 COPY . /var/www/html/
 RUN chown -R www-data:www-data /var/www/html
 
