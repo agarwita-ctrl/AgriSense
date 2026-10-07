@@ -2,8 +2,15 @@
 set -e
 
 # mod_php needs prefork; make sure no other MPM is enabled alongside it.
-rm -f /etc/apache2/mods-enabled/mpm_event.* /etc/apache2/mods-enabled/mpm_worker.*
+for f in /etc/apache2/mods-enabled/mpm_*; do
+    [ -e "$f" ] || [ -L "$f" ] || continue
+    case "$f" in */mpm_prefork.*) ;; *) rm -f "$f" ;; esac
+done
 [ -e /etc/apache2/mods-enabled/mpm_prefork.load ] || a2enmod mpm_prefork >/dev/null
+
+echo "[entrypoint] mods-enabled MPM files:"; ls -l /etc/apache2/mods-enabled | grep -i mpm || true
+echo "[entrypoint] LoadModule mpm lines in config:"
+grep -rIn "LoadModule *mpm_" /etc/apache2 --include='*.conf' --include='*.load' 2>/dev/null || true
 
 # Railway injects $PORT; Apache must listen on it.
 PORT="${PORT:-8080}"
