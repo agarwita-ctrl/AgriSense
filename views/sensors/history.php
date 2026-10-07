@@ -121,6 +121,12 @@ unset($exportQuery['page'], $exportQuery['r']);
             <div class="ag-empty">No readings in this period.</div>
         <?php else: ?>
             <div class="ag-chart ag-chart-lg"><canvas id="chartSensors"></canvas></div>
+            <?php if (count($series) < 2): ?>
+                <p class="text-muted small mt-2 mb-0">
+                    Only one reading falls in this period, so there is no trend to draw yet.
+                    Pick a longer period, or wait for the device to report again.
+                </p>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 </div>
@@ -307,13 +313,20 @@ unset($exportQuery['page'], $exportQuery['r']);
             ? (new Date(rows[rows.length - 1].bucket.replace(' ', 'T')) - new Date(rows[0].bucket.replace(' ', 'T'))) / 86400000
             : 1;
 
+        // Time alone is enough inside one day; beyond that every label carries
+        // its date, otherwise "02:00 PM" repeats with no way to tell the days apart.
         var labels = rows.map(function (r) {
             var d = new Date(String(r.bucket).replace(' ', 'T'));
             if (isNaN(d)) return r.bucket;
-            return span > 3
-                ? d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' })
-                : d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+            var time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+            if (span <= 1) return time;
+            var day = d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' });
+            return span > 8 ? day : day + ' ' + time;
         });
+
+        // Few readings: draw the points too, so the line is easy to follow.
+        var sparse = rows.length <= 60;
+        var dot = sparse ? 3 : 0;
 
         var p = window.AgriSense.charts.palette;
         var twoProbes = <?= (int) ($device['probe_count'] ?? 1) >= 2 ? 'true' : 'false' ?>;
@@ -326,7 +339,7 @@ unset($exportQuery['page'], $exportQuery['r']);
                 label: twoProbes ? 'Soil moisture, average (%)' : 'Soil moisture (%)',
                 data: rows.map(function (r) { return r.soil_moisture === null ? null : Number(r.soil_moisture); }),
                 borderColor: p.moisture, backgroundColor: p.moisture,
-                borderWidth: 2, tension: .32, pointRadius: 0, yAxisID: 'y'
+                borderWidth: 2, tension: .32, pointRadius: dot, spanGaps: true, yAxisID: 'y'
             }
         ];
 
@@ -337,12 +350,12 @@ unset($exportQuery['page'], $exportQuery['r']);
                 label: 'Probe 1 (%)',
                 data: rows.map(function (r) { return r.soil_moisture_1 === null ? null : Number(r.soil_moisture_1); }),
                 borderColor: 'rgba(2,136,209,.45)', backgroundColor: 'rgba(2,136,209,.45)',
-                borderWidth: 1, tension: .32, pointRadius: 0, yAxisID: 'y'
+                borderWidth: 1, tension: .32, pointRadius: dot, spanGaps: true, yAxisID: 'y'
             }, {
                 label: 'Probe 2 (%)',
                 data: rows.map(function (r) { return r.soil_moisture_2 === null ? null : Number(r.soil_moisture_2); }),
                 borderColor: 'rgba(141,110,79,.55)', backgroundColor: 'rgba(141,110,79,.55)',
-                borderWidth: 1, tension: .32, pointRadius: 0, yAxisID: 'y'
+                borderWidth: 1, tension: .32, pointRadius: dot, spanGaps: true, yAxisID: 'y'
             });
         }
 
@@ -352,7 +365,7 @@ unset($exportQuery['page'], $exportQuery['r']);
                 label: 'Humidity (%)',
                 data: rows.map(function (r) { return r.humidity === null ? null : Number(r.humidity); }),
                 borderColor: p.humidity, backgroundColor: p.humidity,
-                borderWidth: 2, tension: .32, pointRadius: 0, borderDash: [5, 3], yAxisID: 'y'
+                borderWidth: 2, tension: .32, pointRadius: dot, spanGaps: true, borderDash: [5, 3], yAxisID: 'y'
             });
         }
 
@@ -362,7 +375,7 @@ unset($exportQuery['page'], $exportQuery['r']);
                 label: hasMlx ? 'Air (°C)' : 'Temperature (°C)',
                 data: rows.map(function (r) { return r.temperature === null ? null : Number(r.temperature); }),
                 borderColor: p.temp, backgroundColor: p.temp,
-                borderWidth: 2, tension: .32, pointRadius: 0, yAxisID: 'y1'
+                borderWidth: 2, tension: .32, pointRadius: dot, spanGaps: true, yAxisID: 'y1'
             });
         }
 
@@ -373,7 +386,7 @@ unset($exportQuery['page'], $exportQuery['r']);
                 label: 'Canopy (°C)',
                 data: rows.map(function (r) { return r.leaf_temperature === null ? null : Number(r.leaf_temperature); }),
                 borderColor: p.leaf, backgroundColor: p.leaf,
-                borderWidth: 2, tension: .32, pointRadius: 0, borderDash: [2, 2], yAxisID: 'y1'
+                borderWidth: 2, tension: .32, pointRadius: dot, spanGaps: true, borderDash: [2, 2], yAxisID: 'y1'
             });
         }
 
@@ -388,7 +401,7 @@ unset($exportQuery['page'], $exportQuery['r']);
                         labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true, font: { size: 11 } } }
                 },
                 scales: {
-                    x: { grid: { display: false }, ticks: { maxTicksLimit: 10, font: { size: 10 } } },
+                    x: { grid: { display: false }, ticks: { maxTicksLimit: 10, maxRotation: 0, autoSkip: true, font: { size: 10 } } },
                     y:  { position: 'left', min: 0, max: 100,
                           title: { display: true, text: 'Percent', font: { size: 10 } } },
                     y1: { position: 'right', grid: { drawOnChartArea: false },

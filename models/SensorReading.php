@@ -86,6 +86,17 @@ class SensorReading
             default            => 21600,  // 6 hours
         };
 
+        // A short or quiet period holds too few readings to survive bucketing:
+        // they would collapse into one point and no trend could be drawn. Plot
+        // the readings themselves (one-second buckets) whenever there are few.
+        $count = (int) Database::scalar(
+            'SELECT COUNT(*) FROM sensor_readings WHERE device_id = ? AND recorded_at BETWEEN ? AND ?',
+            [$deviceId, $start, $end]
+        );
+        if ($count <= 400) {
+            $bucket = 1;
+        }
+
         return Database::all(
             "SELECT FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(recorded_at) / {$bucket}) * {$bucket}) AS bucket,
                     ROUND(AVG(soil_moisture), 2)   AS soil_moisture,

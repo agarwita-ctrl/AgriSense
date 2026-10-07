@@ -10,7 +10,7 @@ class SensorController extends Controller
         Auth::requireLogin();
 
         $device = $this->requireDevice($this->selectedDevice());
-        $range  = $this->rangeFilter('7days');
+        $range  = $this->rangeFilter('today');
 
         $filters = [
             'device_id'   => (int) $device['id'],
@@ -44,7 +44,7 @@ class SensorController extends Controller
         Auth::requireLogin();
 
         $device = $this->requireDevice($this->selectedDevice());
-        $range  = $this->rangeFilter('7days');
+        $range  = $this->rangeFilter('today');
 
         $rows = SensorReading::export([
             'device_id'   => (int) $device['id'],
