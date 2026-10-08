@@ -85,6 +85,7 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include <Wire.h>
 #include <Adafruit_MLX90614.h>
@@ -116,33 +117,35 @@
 //      #define WIFI_PASSWORD_VALUE "YourWiFiPassword"
 //      #define DEVICE_API_KEY_VALUE "paste-the-64-character-key-here"
 //
-//  and uncomment the include below.
+//  The include is optional so the sketch still compiles without the file,
+//  but a board built that way will not connect until real values are set.
 // ---------------------------------------------------------------------
-#include "secrets.h"
+#if defined(__has_include)
+  #if __has_include("secrets.h")
+    #include "secrets.h"
+  #endif
+#endif
 
 #ifndef WIFI_SSID_VALUE
-  #define WIFI_SSID_VALUE      "JRA TRAVELLER'S INN"
-  #define WIFI_PASSWORD_VALUE  "JRAtravellersinn@2024"
+  #define WIFI_SSID_VALUE      "YourWiFiName"
+  #define WIFI_PASSWORD_VALUE  "YourWiFiPassword"
 #endif
 #ifndef DEVICE_API_KEY_VALUE
-  #define DEVICE_API_KEY_VALUE "3750e268605ce4f651633db4a4debbe31c050c9f5b79c78f6195a09fc6c09521"
+  #define DEVICE_API_KEY_VALUE "paste-the-64-character-key-here"
 #endif
 
-// --- WiFi credentials ---
-const char* WIFI_SSID     = "JRA TRAVELLER'S INN";
-const char* WIFI_PASSWORD = "JRAtravellersinn@2024";
+// --- WiFi credentials (from secrets.h) ---
+const char* WIFI_SSID     = WIFI_SSID_VALUE;
+const char* WIFI_PASSWORD = WIFI_PASSWORD_VALUE;
 
 // --- AgriSense backend ---
-// Point this at the machine running XAMPP, including the project folder.
-// Use its LAN IP address: to the ESP32, "localhost" means the ESP32.
-// Find it with `ipconfig` on Windows. Apache serves on port 80, so no
-// port number is needed.
-//   Dev:  http://192.168.1.10/AgriSense
-//   Prod: https://agrisense.example.com
-// The address is handed out by DHCP, so it can change when the router
-// restarts - re-check with `ipconfig` if the device suddenly starts
-// logging "-1" again.
-const char* AGRISENSE_BASE = "http://192.168.1.17/AgriSense";
+// The deployed site, with no trailing slash and no project folder: on
+// Railway the app is served from the root of its domain.
+//   Railway: https://agrisense-production-3904.up.railway.app
+//   XAMPP:   http://192.168.1.10/AgriSense   (your PC's LAN IP, not
+//            "localhost" - to the ESP32 that means the ESP32)
+// An https:// address is detected automatically and uses TLS.
+const char* AGRISENSE_BASE = "https://agrisense-production-3904.up.railway.app";
 
 // Must match the API key shown in the dashboard under Devices -> Edit.
 // The dashboard shows a key once, when it is generated: only a hash of it
@@ -722,15 +725,28 @@ bool apiRequest(const String& path, const char* method,
     return false;
   }
 
+  // Railway only answers on HTTPS, and HTTPClient will not follow its
+  // http->https redirect for a POST, so a TLS client is used for any
+  // https:// base address. setInsecure() encrypts the traffic without
+  // checking the server's certificate; for a stricter setup, replace it with
+  // secureClient.setCACert(<root certificate>).
+  WiFiClientSecure secureClient;
+  WiFiClient       plainClient;
+  const bool useTls = strncmp(AGRISENSE_BASE, "https://", 8) == 0;
+  if (useTls) secureClient.setInsecure();
+  WiFiClient& netClient = useTls ? (WiFiClient&)secureClient : plainClient;
+
   HTTPClient http;
   String url = String(AGRISENSE_BASE) + path;
+  http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
 
-  if (!http.begin(url)) {
+  if (!http.begin(netClient, url)) {
     Serial.printf("[http] could not open a connection to %s\n", url.c_str());
     state.backendOk = false;
     return false;
   }
 
+  http.setConnectTimeout(6000);
   http.setTimeout(6000);
   http.addHeader("X-DEVICE-KEY", DEVICE_API_KEY);
   http.addHeader("Accept", "application/json");
