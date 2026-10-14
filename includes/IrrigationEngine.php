@@ -566,6 +566,7 @@ class IrrigationEngine
                 'reading_interval'   => (int) $settings['reading_interval'],
                 'min_cycle_interval' => (int) $settings['min_cycle_interval'],
             ],
+            'cycle' => IrrigationSetting::cycleStatus($settings),
             'today' => [
                 'cycles'        => $today['cycles'],
                 'total_seconds' => $today['total_seconds'],

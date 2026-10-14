@@ -98,39 +98,60 @@ class IrrigationController extends Controller
             'device'    => $device,
             'settings'  => $settings,
             'errors'    => [],
-            'canEdit'   => Auth::isAdmin(),
-            'updatedBy' => $settings['updated_by'] ? User::find((int) $settings['updated_by']) : null,
+            // Administrators change everything; a farmer with pump control
+            // can change only the planting cycle.
+            'canEdit'      => Auth::isAdmin(),
+            'canEditCycle' => Auth::canControlPump(),
+            'cycle'        => IrrigationSetting::cycleStatus($settings),
+            'updatedBy'    => $settings['updated_by'] ? User::find((int) $settings['updated_by']) : null,
         ], ['title' => 'Irrigation settings', 'active' => 'settings']);
     }
 
     public function saveSettings(): void
     {
-        Auth::requireAdmin();
+        // Admins save every field; a farmer with the pump-control permission
+        // saves only the planting cycle. Anyone else is refused here.
+        Auth::requirePumpControl();
         csrf_guard();
 
-        $device = $this->requireDevice($this->selectedDevice());
+        $isAdmin = Auth::isAdmin();
+        $device  = $this->requireDevice($this->selectedDevice());
+        $current = IrrigationSetting::ensureFor((int) $device['id']);
 
-        $data = [
-            'moisture_threshold' => input_float('moisture_threshold'),
-            'target_moisture'    => input_float('target_moisture'),
-            'dry_value'          => input_float('dry_value'),
-            'wet_value'          => input_float('wet_value'),
-            'auto_irrigation'    => input('auto_irrigation') === '1',
-            'max_pump_runtime'   => input_float('max_pump_runtime'),
-            'reading_interval'   => input_float('reading_interval'),
-            'min_cycle_interval' => input_float('min_cycle_interval'),
+        // --- planting cycle (everyone who may save) -------------------------
+        $clearCycle = input('clear_cycle') === '1';
+        $cycleInput = [
+            'crop_name'   => $clearCycle ? '' : input('crop_name'),
+            'cycle_start' => $clearCycle ? '' : input('cycle_start'),
+            'cycle_days'  => $clearCycle ? '' : input('cycle_days'),
         ];
+        $errors = IrrigationSetting::validateCycle($cycleInput);
 
-        $errors = IrrigationSetting::validate($data);
+        // --- everything else (administrators only) -------------------------
+        $data = [];
+        if ($isAdmin) {
+            $data = [
+                'moisture_threshold' => input_float('moisture_threshold'),
+                'target_moisture'    => input_float('target_moisture'),
+                'dry_value'          => input_float('dry_value'),
+                'wet_value'          => input_float('wet_value'),
+                'auto_irrigation'    => input('auto_irrigation') === '1',
+                'max_pump_runtime'   => input_float('max_pump_runtime'),
+                'reading_interval'   => input_float('reading_interval'),
+                'min_cycle_interval' => input_float('min_cycle_interval'),
+            ];
+            $errors = array_merge(IrrigationSetting::validate($data), $errors);
+        }
 
         if ($errors) {
-            $current = IrrigationSetting::ensureFor((int) $device['id']);
-
-            render('irrigation/settings', [
-                'devices'   => Device::all(),
-                'device'    => $device,
-                // Keep what the user typed so they can correct it.
-                'settings'  => array_merge($current, [
+            // Keep what the user typed so they can correct it.
+            $typed = [
+                'crop_name'   => $cycleInput['crop_name'],
+                'cycle_start' => $cycleInput['cycle_start'],
+                'cycle_days'  => $cycleInput['cycle_days'],
+            ];
+            if ($isAdmin) {
+                $typed += [
                     'moisture_threshold' => $data['moisture_threshold'],
                     'target_moisture'    => $data['target_moisture'],
                     'dry_value'          => $data['dry_value'],
@@ -139,36 +160,75 @@ class IrrigationController extends Controller
                     'max_pump_runtime'   => $data['max_pump_runtime'],
                     'reading_interval'   => $data['reading_interval'],
                     'min_cycle_interval' => $data['min_cycle_interval'],
-                ]),
-                'errors'    => $errors,
-                'canEdit'   => true,
-                'updatedBy' => null,
+                ];
+            }
+            $shown = array_merge($current, $typed);
+
+            render('irrigation/settings', [
+                'devices'      => Device::all(),
+                'device'       => $device,
+                'settings'     => $shown,
+                'errors'       => $errors,
+                'canEdit'      => $isAdmin,
+                'canEditCycle' => true,
+                'cycle'        => IrrigationSetting::cycleStatus($current),
+                'updatedBy'    => null,
             ], ['title' => 'Irrigation settings', 'active' => 'settings']);
 
             return;
         }
 
-        IrrigationSetting::update((int) $device['id'], $data, Auth::id());
+        $deviceId = (int) $device['id'];
+        $crop     = trim($cycleInput['crop_name']);
+        $crop     = $crop === '' ? null : $crop;
+        $start    = $cycleInput['cycle_start'] === '' ? null : $cycleInput['cycle_start'];
+        $days     = $cycleInput['cycle_days'] === '' ? null : (int) $cycleInput['cycle_days'];
 
-        SystemLog::record(Auth::id(), 'settings_update', sprintf(
-            'Updated irrigation settings for %s: threshold %.1f%%, target %.1f%%, max runtime %ds, mode %s.',
-            $device['device_code'],
-            $data['moisture_threshold'],
-            $data['target_moisture'],
-            (int) $data['max_pump_runtime'],
-            $data['auto_irrigation'] ? 'AUTO' : 'MANUAL'
-        ));
+        if ($isAdmin) {
+            IrrigationSetting::update($deviceId, $data, Auth::id());
+        }
+        IrrigationSetting::updateCycle($deviceId, $crop, $start, $days, Auth::id());
 
-        Alert::raise(
-            (int) $device['id'],
-            'settings_changed',
-            sprintf('Irrigation settings updated: pump ON at %.1f%%, OFF at %.1f%%.',
-                $data['moisture_threshold'], $data['target_moisture']),
-            'info'
+        $cycle = IrrigationSetting::cycleStatus(
+            ['crop_name' => $crop, 'cycle_start' => $start, 'cycle_days' => $days]
         );
+        $cycleText = $cycle['configured']
+            ? sprintf('planting cycle %s from %s for %d days',
+                $crop ?? '(unnamed)', $start, $days)
+            : 'planting cycle cleared';
 
-        flash('success', 'Irrigation settings saved. The device will pick them up on its next check-in.');
-        redirect('irrigation/settings', ['device' => (int) $device['id']]);
+        if ($isAdmin) {
+            SystemLog::record(Auth::id(), 'settings_update', sprintf(
+                'Updated irrigation settings for %s: threshold %.1f%%, target %.1f%%, max runtime %ds, mode %s, %s.',
+                $device['device_code'],
+                $data['moisture_threshold'],
+                $data['target_moisture'],
+                (int) $data['max_pump_runtime'],
+                $data['auto_irrigation'] ? 'AUTO' : 'MANUAL',
+                $cycleText
+            ));
+            Alert::raise(
+                $deviceId,
+                'settings_changed',
+                sprintf('Irrigation settings updated: pump ON at %.1f%%, OFF at %.1f%%.',
+                    $data['moisture_threshold'], $data['target_moisture']),
+                'info'
+            );
+        } else {
+            SystemLog::record(Auth::id(), 'settings_update',
+                sprintf('Updated the planting cycle for %s: %s.', $device['device_code'], $cycleText));
+            Alert::raise(
+                $deviceId,
+                'settings_changed',
+                'Planting cycle updated: ' . $cycle['message'],
+                'info'
+            );
+        }
+
+        flash('success', $isAdmin
+            ? 'Irrigation settings saved. The device will pick them up on its next check-in.'
+            : 'Planting cycle saved. The device will pick it up on its next check-in.');
+        redirect('irrigation/settings', ['device' => $deviceId]);
     }
 
     // -----------------------------------------------------------------

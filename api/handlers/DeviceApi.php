@@ -72,6 +72,7 @@ class DeviceApi
 
         $deviceId = (int) $device['id'];
         $settings = IrrigationSetting::ensureFor($deviceId);
+        $cycle    = IrrigationSetting::cycleStatus($settings);
 
         Device::touch($deviceId, client_ip());
 
@@ -90,6 +91,10 @@ class DeviceApi
                 'max_pump_runtime'   => (int) $settings['max_pump_runtime'],
                 'reading_interval'   => (int) $settings['reading_interval'],
                 'min_cycle_interval' => (int) $settings['min_cycle_interval'],
+                // False outside the planting cycle: the device pauses
+                // automatic irrigation. True when no cycle is set.
+                'cycle_active'       => $cycle['active'],
+                'cycle_state'        => $cycle['state'],
                 'updated_at'         => $settings['updated_at'],
             ],
             'command'     => self::nextCommand($deviceId),

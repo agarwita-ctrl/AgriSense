@@ -73,6 +73,34 @@ $config = [
         </div>
     <?php endif; ?>
 
+    <!-- ============ Planting cycle ============ -->
+    <?php
+    $cycle      = $snapshot['cycle'];
+    $cycleClass = match ($cycle['state']) {
+        'active'   => 'alert-success',
+        'upcoming' => 'alert-info',
+        'ended'    => 'alert-warning',
+        default    => 'alert-light border',
+    };
+    ?>
+    <div class="alert <?= $cycleClass ?> d-flex flex-wrap align-items-center gap-3 mb-3" role="status">
+        <?= icon('clock', 18) ?>
+        <div class="flex-grow-1">
+            <strong>Planting cycle</strong> &mdash; <?= e($cycle['message']) ?>
+            <?php if ($cycle['configured']): ?>
+                <div class="ag-progress mt-2" title="<?= e((string) $cycle['progress']) ?>% through the cycle">
+                    <div style="width: <?= e((string) max(0, min(100, $cycle['progress']))) ?>%;"></div>
+                </div>
+            <?php endif; ?>
+        </div>
+        <?php if ($canControlPump): ?>
+            <a class="btn btn-sm btn-outline-ag"
+               href="<?= e(url('irrigation/settings', ['device' => $dev['id']])) ?>">
+                <?= icon('edit', 14) ?> <?= $cycle['configured'] ? 'Change' : 'Set the cycle' ?>
+            </a>
+        <?php endif; ?>
+    </div>
+
     <!-- ============ Summary cards ============ -->
     <div class="row g-3 mb-3">
 

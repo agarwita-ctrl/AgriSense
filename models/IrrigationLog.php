@@ -18,6 +18,7 @@ class IrrigationLog
         'sensor_failure'     => 'Sensor failure - safe stop',
         'device_reset'       => 'Device restarted',
         'reconciled_unknown' => 'Stopped - reason not reported',
+        'cycle_ended'        => 'Planting cycle not active',
     ];
 
     /** The cycle currently running on a device, if any. */

@@ -69,6 +69,7 @@ class SensorApi
 
         $result   = IrrigationEngine::ingest($device, $body);
         $settings = IrrigationSetting::ensureFor((int) $device['id']);
+        $cycle    = IrrigationSetting::cycleStatus($settings);
 
         // Piggy-back the current configuration and any queued command on the
         // reply so a device on a slow link needs only one round trip.
@@ -85,6 +86,8 @@ class SensorApi
                 'min_cycle_interval' => (int) $settings['min_cycle_interval'],
                 'dry_value'          => (int) $settings['dry_value'],
                 'wet_value'          => (int) $settings['wet_value'],
+                'cycle_active'       => $cycle['active'],
+                'cycle_state'        => $cycle['state'],
             ],
             'command'     => DeviceApi::nextCommand((int) $device['id']),
             'server_time' => date('c'),

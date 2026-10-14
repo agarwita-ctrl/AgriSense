@@ -167,7 +167,8 @@ and raises an `abnormal_reading` alert.
     "moisture_threshold": 30, "target_moisture": 60,
     "auto_irrigation": true, "max_pump_runtime": 300,
     "reading_interval": 30, "min_cycle_interval": 600,
-    "dry_value": 3200, "wet_value": 1200
+    "dry_value": 3200, "wet_value": 1200,
+    "cycle_active": true, "cycle_state": "active"
   },
   "command": { "id": 7, "command": "PUMP_OFF" },
   "server_time": "2026-09-05T11:31:17+08:00"
@@ -199,6 +200,7 @@ X-API-Key: <key>
     "dry_value": 3200, "wet_value": 1200,
     "auto_irrigation": true, "max_pump_runtime": 300,
     "reading_interval": 30, "min_cycle_interval": 600,
+    "cycle_active": true, "cycle_state": "active",
     "updated_at": "2026-09-05 11:31:08"
   },
   "command": null,
@@ -263,7 +265,15 @@ cycle fulfils.
 ```
 
 `stop_reason` is one of `target_reached`, `manual_stop`, `max_runtime`,
-`sensor_failure`, `device_reset`.
+`sensor_failure`, `device_reset`, `cycle_ended` (the planting cycle closed while
+the pump was running).
+
+**Planting cycle.** Both settings replies carry `cycle_active` and `cycle_state`
+(`none`, `upcoming`, `active` or `ended`). `cycle_active` is `true` when no cycle
+is set or today falls inside it, and `false` otherwise; the firmware then pauses
+automatic irrigation and stops a running pump with `stop_reason: "cycle_ended"`.
+Manual commands are not affected. The server decides from the calendar in its own
+timezone, so the device needs no clock.
 
 ```json
 { "success": true, "message": "Irrigation cycle closed.",

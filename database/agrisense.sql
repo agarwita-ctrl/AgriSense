@@ -101,7 +101,7 @@ CREATE TABLE `irrigation_logs` (
   `soil_moisture` decimal(5,2) DEFAULT NULL COMMENT 'Moisture reading that opened the cycle',
   `end_moisture` decimal(5,2) DEFAULT NULL COMMENT 'Moisture reading that closed the cycle',
   `threshold` decimal(5,2) DEFAULT NULL COMMENT 'Threshold in force when the cycle opened',
-  `stop_reason` enum('target_reached','manual_stop','max_runtime','sensor_failure','device_reset','reconciled_unknown') DEFAULT NULL,
+  `stop_reason` enum('target_reached','manual_stop','max_runtime','sensor_failure','device_reset','reconciled_unknown','cycle_ended') DEFAULT NULL,
   `started_at` datetime NOT NULL,
   `ended_at` datetime DEFAULT NULL,
   `duration_seconds` int(10) UNSIGNED DEFAULT NULL,
@@ -136,6 +136,9 @@ CREATE TABLE `irrigation_settings` (
   `max_pump_runtime` int(10) UNSIGNED NOT NULL DEFAULT 300 COMMENT 'Hard safety cut-off, seconds',
   `reading_interval` int(10) UNSIGNED NOT NULL DEFAULT 30 COMMENT 'Seconds between sensor reads / uploads',
   `min_cycle_interval` int(10) UNSIGNED NOT NULL DEFAULT 600 COMMENT 'Minimum rest between two irrigation cycles, seconds',
+  `crop_name` varchar(80) DEFAULT NULL COMMENT 'What is planted in this cycle, free text',
+  `cycle_start` date DEFAULT NULL COMMENT 'First day of the planting cycle',
+  `cycle_days` smallint(5) UNSIGNED DEFAULT NULL COMMENT 'Length of the planting cycle in days, counting the start day',
   `updated_by` int(10) UNSIGNED DEFAULT NULL,
   `updated_at` datetime NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ;

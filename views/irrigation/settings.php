@@ -2,13 +2,16 @@
 /**
  * AgriSense - Irrigation settings (requirement 17)
  *
- * Farmers can see the configuration; only administrators can change it.
+ * Farmers can see the configuration. Administrators can change all of it;
+ * a farmer with the pump-control permission can change the planting cycle.
  *
  * @var array      $devices
  * @var array      $device
  * @var array      $settings
  * @var array      $errors
- * @var bool       $canEdit
+ * @var bool       $canEdit       all settings (administrators)
+ * @var bool       $canEditCycle  the planting cycle (administrators and pump-control farmers)
+ * @var array      $cycle         IrrigationSetting::cycleStatus()
  * @var array|null $updatedBy
  */
 
@@ -23,7 +26,9 @@ $invalid = static fn (string $field): string => isset($errors[$field]) ? ' is-in
 
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
     <?php require APP_ROOT . '/views/layout/device_select.php'; ?>
-    <?php if (!$canEdit): ?>
+    <?php if (!$canEdit && $canEditCycle): ?>
+        <span class="badge text-bg-secondary">You can change the planting cycle &mdash; administrators change the rest</span>
+    <?php elseif (!$canEdit): ?>
         <span class="badge text-bg-secondary">View only &mdash; administrators can change these values</span>
     <?php endif; ?>
 </div>
@@ -134,6 +139,83 @@ $invalid = static fn (string $field): string => isset($errors[$field]) ? ' is-in
             </div>
         </div>
 
+        <!-- ============ Planting cycle ============ -->
+        <div class="col-12">
+            <div class="ag-card">
+                <div class="ag-card-head">
+                    <h2 class="ag-card-title"><?= icon('clock', 16) ?> Planting cycle</h2>
+                </div>
+                <div class="ag-card-body">
+                    <div class="row g-3">
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="crop_name">What is planted</label>
+                            <input type="text" maxlength="80"
+                                   class="form-control<?= $invalid('crop_name') ?>"
+                                   id="crop_name" name="crop_name" placeholder="e.g. Rice, Corn, Tomato"
+                                   value="<?= e((string) ($settings['crop_name'] ?? '')) ?>"
+                                   <?= $canEditCycle ? '' : 'disabled' ?>>
+                            <div class="ag-field-help">Optional. Shown on the dashboard.</div>
+                            <?= $err('crop_name') ?>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="cycle_start">First day of the cycle</label>
+                            <input type="date"
+                                   class="form-control<?= $invalid('cycle_start') ?>"
+                                   id="cycle_start" name="cycle_start"
+                                   value="<?= e((string) ($settings['cycle_start'] ?? '')) ?>"
+                                   <?= $canEditCycle ? '' : 'disabled' ?>>
+                            <div class="ag-field-help">Usually the planting or transplanting day.</div>
+                            <?= $err('cycle_start') ?>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="cycle_days">Length of the cycle (days)</label>
+                            <input type="number" step="1" min="1" max="<?= e((string) IrrigationSetting::CYCLE_MAX_DAYS) ?>"
+                                   class="form-control<?= $invalid('cycle_days') ?>"
+                                   id="cycle_days" name="cycle_days" placeholder="e.g. 120"
+                                   value="<?= e((string) ($settings['cycle_days'] ?? '')) ?>"
+                                   <?= $canEditCycle ? '' : 'disabled' ?>>
+                            <div class="ag-field-help">
+                                Counts the first day as day 1. Up to <?= e((string) IrrigationSetting::CYCLE_MAX_DAYS) ?> days.
+                            </div>
+                            <?= $err('cycle_days') ?>
+                        </div>
+
+                        <div class="col-12">
+                            <?php
+                            $cycleClass = match ($cycle['state']) {
+                                'active'   => 'alert-success',
+                                'upcoming' => 'alert-info',
+                                'ended'    => 'alert-warning',
+                                default    => 'alert-light border',
+                            };
+                            ?>
+                            <div class="alert <?= $cycleClass ?> small mb-0">
+                                <strong>Today:</strong> <?= e($cycle['message']) ?>
+                                <?php if ($cycle['configured']): ?>
+                                    <div class="ag-progress mt-2" title="<?= e((string) $cycle['progress']) ?>% through the cycle">
+                                        <div style="width: <?= e((string) max(0, min(100, $cycle['progress']))) ?>%;"></div>
+                                    </div>
+                                    <div class="mt-1">
+                                        <?= e(fmt_date($cycle['start'])) ?> &rarr; <?= e(fmt_date($cycle['end'])) ?>
+                                        (<?= e((string) $cycle['days']) ?> days)
+                                    </div>
+                                <?php endif; ?>
+                            </div>
+                            <div class="ag-field-help mt-2">
+                                Automatic irrigation runs only from the first to the last day of the cycle.
+                                Outside it the device stops watering by itself, and a pump that is running
+                                is switched off. Manual control from the dashboard still works. Leave the
+                                date and length empty to water at all times.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ============ Irrigation behaviour ============ -->
         <div class="col-12">
             <div class="ag-card">
@@ -200,11 +282,17 @@ $invalid = static fn (string $field): string => isset($errors[$field]) ? ' is-in
                     </div>
                 </div>
 
-                <?php if ($canEdit): ?>
+                <?php if ($canEdit || $canEditCycle): ?>
                     <div class="ag-card-body border-top d-flex flex-wrap align-items-center gap-2">
                         <button class="btn btn-ag" type="submit"><?= icon('check', 16) ?> Save settings</button>
                         <a class="btn btn-outline-secondary"
                            href="<?= e(url('irrigation/settings', ['device' => (int) $device['id']])) ?>">Cancel</a>
+                        <?php if ($canEditCycle && $cycle['configured']): ?>
+                            <!-- After Save in the page order, so Enter in a field submits Save, not this. -->
+                            <button class="btn btn-outline-danger" type="submit" name="clear_cycle" value="1">
+                                <?= icon('x', 16) ?> Clear planting cycle
+                            </button>
+                        <?php endif; ?>
                         <span class="ag-field-help ms-sm-auto">
                             The device applies new settings on its next check-in
                             (within <?= e(fmt_duration((int) $settings['reading_interval'])) ?>).

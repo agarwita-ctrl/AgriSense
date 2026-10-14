@@ -158,7 +158,11 @@ const char* DEVICE_ID = "AGRISENSE-ESP32-01";
 // Another major: 3.x still texted the admin when the network was down, and
 // 4.0.0 does not. What the board reports, and how, has changed - not just
 // what it measures.
-const char* FIRMWARE_VERSION = "4.1.0";
+//
+// 4.2.0 adds the planting cycle: the server reports `cycle_active` with the
+// settings, and automatic irrigation is paused (and a running pump stopped)
+// whenever it is false. Manual control is never affected by the cycle.
+const char* FIRMWARE_VERSION = "4.2.0";
 
 // --- Temperature (MLX90614) ---------------------------------------------
 // The infrared thermometer reports two figures: the temperature of whatever
@@ -235,7 +239,7 @@ const unsigned long WIFI_RETRY_MS             = 15000;  // between reconnect att
 #define I2C_SDA       21
 #define I2C_SCL       22
 // The MLX90614's SMBus interface is specified up to 100 kHz. The ESP32
-// defaults to 100 kHz too, but it is set explicitly here because a shared
+// defaults to 100 kHz too, but it is set explicitly h1qere because a shared
 // bus with a faster device would otherwise leave this one out of spec.
 #define I2C_FREQ      100000
 
@@ -253,6 +257,11 @@ struct Settings {
   int      dryValue          = SOIL_RAW_DRY;
   int      wetValue          = SOIL_RAW_WET;
   bool     autoIrrigation    = true;
+  // False while the farmer's planting cycle is not running (before it starts,
+  // after it ends). The server works this out from the calendar, so the board
+  // needs no clock. True until told otherwise, so a board that has never
+  // reached the server, or a server with no cycle set, behaves as before.
+  bool     cycleActive       = true;
   uint32_t maxPumpRuntime    = DEFAULT_MAX_PUMP_RUNTIME;
   uint32_t minCycleInterval  = DEFAULT_MIN_CYCLE_INTERVAL;
   // "Sensor reading interval" on the dashboard - how often a telemetry row
@@ -411,7 +420,8 @@ void loop() {
                   isnan(state.leafTemp) ? -1.0 : state.leafTemp,
                   state.leafStress ? " STRESS" : "",
                   state.pumpRunning ? "ON" : "OFF",
-                  settings.autoIrrigation ? "AUTO" : "MANUAL");
+                  !settings.autoIrrigation ? "MANUAL"
+                    : (settings.cycleActive ? "AUTO" : "AUTO (paused: outside planting cycle)"));
 
     handleIrrigation();
   }
@@ -649,6 +659,17 @@ void handleIrrigation() {
     return;      // manual mode - the operator is in charge
   }
 
+  // Outside the planting cycle nothing is watered automatically. A pump that
+  // is already running is stopped too, so a cycle that ends mid-watering does
+  // not leave the field soaking until the runtime limit.
+  if (!settings.cycleActive) {
+    if (state.pumpRunning) {
+      Serial.println("[cycle] Planting cycle ended while irrigating - stopping the pump");
+      setPump(false, nullptr, "cycle_ended", -1);
+    }
+    return;
+  }
+
   // Safe state: with no moisture reading we cannot tell when to stop, so
   // we never start, and we stop a cycle that is already running.
   if (isnan(state.avgPct)) {
@@ -783,6 +804,7 @@ void applySettings(JsonObjectConst src) {
   int      dry            = src["dry_value"]          | settings.dryValue;
   int      wet            = src["wet_value"]          | settings.wetValue;
   bool     autoMode       = src["auto_irrigation"]    | settings.autoIrrigation;
+  bool     cycleActive    = src["cycle_active"]       | settings.cycleActive;
   uint32_t maxRun         = src["max_pump_runtime"]   | settings.maxPumpRuntime;
   uint32_t rest           = src["min_cycle_interval"] | settings.minCycleInterval;
   uint32_t readingSeconds = src["reading_interval"]   | (settings.readingIntervalMs / 1000);
@@ -808,12 +830,18 @@ void applySettings(JsonObjectConst src) {
   if (autoMode != settings.autoIrrigation) {
     Serial.printf("[config] Mode changed to %s\n", autoMode ? "AUTOMATIC" : "MANUAL");
   }
+  if (cycleActive != settings.cycleActive) {
+    Serial.printf("[config] Planting cycle is now %s - automatic irrigation %s\n",
+                  cycleActive ? "ACTIVE" : "NOT ACTIVE",
+                  cycleActive ? "resumed" : "paused");
+  }
 
   settings.moistureThreshold = threshold;
   settings.targetMoisture    = target;
   settings.dryValue          = dry;
   settings.wetValue          = wet;
   settings.autoIrrigation    = autoMode;
+  settings.cycleActive       = cycleActive;
   settings.maxPumpRuntime    = maxRun;
   settings.minCycleInterval  = rest;
   settings.readingIntervalMs = readingSeconds * 1000UL;
