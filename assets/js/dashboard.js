@@ -262,7 +262,22 @@
     // Polling
     // -----------------------------------------------------------------
 
+    /**
+     * The browser has no network. Every figure on the page is now whatever
+     * was last painted, so say so rather than keep showing "Live".
+     */
+    function markOffline() {
+        $('agLiveIndicator')?.classList.add('is-stale');
+        const text = $('agLiveText');
+        if (text) text.textContent = 'Offline - data not live';
+    }
+
     async function refresh() {
+        if (!navigator.onLine) {
+            markOffline();
+            return;
+        }
+
         try {
             const snapshot = await window.AgriSense.api(`api/dashboard?device_id=${deviceId}`);
             state.failures = 0;
@@ -285,6 +300,7 @@
 
     function startPolling() {
         stopPolling();
+        if (!navigator.onLine) return;
         state.timer = setInterval(refresh, pollMs);
     }
 
@@ -301,6 +317,17 @@
             refresh();
             startPolling();
         }
+    });
+
+    // Stop polling the moment the network drops; resume with an immediate
+    // refresh when it returns.
+    window.addEventListener('offline', () => {
+        stopPolling();
+        markOffline();
+    });
+    window.addEventListener('online', () => {
+        refresh();
+        if (!document.hidden) startPolling();
     });
 
     // -----------------------------------------------------------------

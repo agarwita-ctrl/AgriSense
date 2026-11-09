@@ -10,6 +10,7 @@
 
 <script src="<?= e(BASE_PATH) ?>/assets/vendor/bootstrap.bundle.min.js"></script>
 <script src="<?= e(BASE_PATH) ?>/assets/vendor/chart.umd.min.js"></script>
+<?= pwa_script_tag() ?>
 <script src="<?= e(asset('js/app.js')) ?>"></script>
 <script src="<?= e(asset('js/charts.js')) ?>"></script>
 <?php foreach ($GLOBALS['PAGE_SCRIPTS'] ?? [] as $script): ?>

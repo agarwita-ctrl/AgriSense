@@ -382,6 +382,52 @@ doing.
 
 ---
 
+## Progressive Web App
+
+AgriSense can be installed like an app. It still needs the server: the
+installed copy shows the same live dashboard, nothing more.
+
+**Install**
+
+- **Android (Chrome / Edge):** open the site, then *Install app* in the top bar
+  (or the browser menu, *Install app*).
+- **iPhone / iPad (Safari):** *Share* → *Add to Home Screen*.
+- **Desktop (Chrome / Edge):** *Install app* in the top bar, or the install icon
+  in the address bar.
+
+It needs **HTTPS** (Railway provides it) or `localhost`. On plain `http://` over
+a LAN address the browser will not register the service worker, so the site
+still works but cannot be installed.
+
+**What is cached**
+
+Only static files, in the cache `agrisense-static-v1`: everything under
+`/assets/` (stylesheets, scripts, Bootstrap, Chart.js, icons) and
+`offline.html`. App CSS/JS carry a `?v=` stamp and are cached under that exact
+URL, so a deployed change is never hidden behind an old copy.
+
+**What is never cached**
+
+`/api/*`, every non-GET request, and every HTML page. Login, logout, profile and
+CSV exports are not touched by the service worker at all. Pump status and
+readings always come from the server. If a page cannot be reached, the offline
+page says so, says the data is not live, and reminds you that the irrigation
+controller keeps running by itself. While the browser is offline the dashboard
+stops polling and its indicator reads "Offline - data not live".
+
+**Releasing a change to the service worker or precache list**
+
+Edit `CACHE_VERSION` at the top of `sw.js` (`v1` → `v2`). The new worker installs
+alongside the old one and takes over once every open tab or app window has been
+closed; the old cache is deleted then. There is deliberately no forced takeover,
+so a page never runs on a mix of old and new code.
+
+Files: `manifest.webmanifest`, `sw.js`, `offline.html`, `assets/js/pwa.js`,
+`assets/js/offline.js`, `assets/css/pwa.css`, `assets/css/offline.css`,
+`assets/images/icons/`.
+
+---
+
 ## 8. Security
 
 - Passwords hashed with `password_hash()` (bcrypt); never stored or logged in

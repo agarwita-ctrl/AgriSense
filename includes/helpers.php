@@ -74,6 +74,33 @@ function asset(string $path): string
     return BASE_PATH . '/assets/' . $path . '?v=' . $version;
 }
 
+/**
+ * <head> tags that make the app installable: manifest, theme colour, the
+ * iOS home-screen icon and the standalone-mode meta tags.
+ */
+function pwa_head_tags(string $themeColor = '#2e7d32'): string
+{
+    return implode("
+    ", [
+        '<link rel="manifest" href="' . e(url('manifest.webmanifest')) . '">',
+        '<meta name="theme-color" content="' . e($themeColor) . '">',
+        '<link rel="apple-touch-icon" href="' . e(asset('images/icons/apple-touch-icon.png')) . '">',
+        '<meta name="mobile-web-app-capable" content="yes">',
+        '<meta name="apple-mobile-web-app-capable" content="yes">',
+        '<meta name="apple-mobile-web-app-title" content="' . e(APP_NAME) . '">',
+        '<meta name="apple-mobile-web-app-status-bar-style" content="default">',
+        '<link rel="stylesheet" href="' . e(asset('css/pwa.css')) . '">',
+    ]) . "
+";
+}
+
+/** Script tag for assets/js/pwa.js, carrying BASE_PATH as a data attribute. */
+function pwa_script_tag(): string
+{
+    return '<script src="' . e(asset('js/pwa.js')) . '" data-base-path="' . e(BASE_PATH) . '"></script>' . "
+";
+}
+
 /** Send a redirect and stop. */
 function redirect(string $path, array $query = []): never
 {

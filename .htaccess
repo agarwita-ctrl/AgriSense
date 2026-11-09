@@ -52,6 +52,25 @@ DirectoryIndex index.php
     Header always set Referrer-Policy "same-origin"
 </IfModule>
 
+# PWA files. They are real files at the project root, so the rewrite rules
+# above already serve them directly; this only sets the right headers.
+<IfModule mod_mime.c>
+    AddType application/manifest+json .webmanifest
+</IfModule>
+
+# The service worker must never be served stale, or a fix to it could not
+# reach installed copies. (No Service-Worker-Allowed header: sw.js sits at
+# the app root, so its default scope already covers the whole app, and
+# widening it would let the worker control paths above the app.)
+<FilesMatch "^(sw\.js|manifest\.webmanifest|offline\.html)$">
+    <IfModule mod_expires.c>
+        ExpiresActive Off
+    </IfModule>
+    <IfModule mod_headers.c>
+        Header always set Cache-Control "no-cache"
+    </IfModule>
+</FilesMatch>
+
 # Long cache for fingerprinted assets (they are requested with ?v=mtime).
 <IfModule mod_expires.c>
     ExpiresActive On

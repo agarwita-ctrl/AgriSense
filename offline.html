@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <base href="./">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#2e7d32">
+    <title>Offline &middot; AgriSense</title>
+    <link rel="icon" type="image/svg+xml" href="assets/images/favicon.svg">
+    <link rel="stylesheet" href="assets/css/offline.css">
+</head>
+<body>
+<main class="off">
+    <img class="off-logo" src="assets/images/favicon.svg" width="56" height="56" alt="">
+    <h1>You are offline</h1>
+    <p class="off-lead">AgriSense can't reach the server. Nothing on the dashboard is live right now.</p>
+
+    <ul class="off-points">
+        <li><strong>Dashboard data is not live.</strong> Moisture, pump state and alerts are not being updated, and you can't send pump commands from here.</li>
+        <li><strong>The irrigation controller keeps working on its own.</strong> The device in the field carries on with its saved settings whether or not this screen is connected.</li>
+    </ul>
+
+    <button type="button" class="off-retry" id="offRetry">Retry</button>
+    <p class="off-note" id="offNote" role="status" aria-live="polite"></p>
+</main>
+<script src="assets/js/offline.js"></script>
+</body>
+</html>

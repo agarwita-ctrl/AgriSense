@@ -1,0 +1,13 @@
+/* AgriSense - PWA extras: offline banner (every page) */
+
+.ag-offline-banner {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 2000;
+    padding: .55rem 1rem;
+    background: #7a1f1f;
+    color: #fff;
+    font: 600 .85rem/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    text-align: center;
+}
+.ag-offline-banner[hidden] { display: none; }

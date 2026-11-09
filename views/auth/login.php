@@ -17,6 +17,7 @@ require_once APP_ROOT . '/views/layout/icons.php';
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Sign in &middot; <?= e(APP_NAME) ?></title>
     <link rel="icon" type="image/svg+xml" href="<?= e(asset('images/favicon.svg')) ?>">
+    <?= pwa_head_tags() ?>
     <link rel="stylesheet" href="<?= e(BASE_PATH) ?>/assets/vendor/bootstrap.min.css">
     <link rel="stylesheet" href="<?= e(asset('css/app.css')) ?>">
     <style>
@@ -98,6 +99,7 @@ require_once APP_ROOT . '/views/layout/icons.php';
 </div>
 
 <script src="<?= e(BASE_PATH) ?>/assets/vendor/bootstrap.bundle.min.js"></script>
+<?= pwa_script_tag() ?>
 <script <?= csp_attr() ?>>
     // Small convenience: reveal the password while it is held down.
     (function () {

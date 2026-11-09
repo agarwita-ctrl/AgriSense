@@ -37,6 +37,7 @@ $navItem = static function (string $key, string $label, string $route, string $i
     <meta name="base-path" content="<?= e(BASE_PATH) ?>">
     <title><?= e($pageTitle) ?> &middot; <?= e(APP_NAME) ?></title>
     <link rel="icon" type="image/svg+xml" href="<?= e(asset('images/favicon.svg')) ?>">
+    <?= pwa_head_tags() ?>
     <link rel="stylesheet" href="<?= e(BASE_PATH) ?>/assets/vendor/bootstrap.min.css">
     <link rel="stylesheet" href="<?= e(asset('css/app.css')) ?>">
 </head>
@@ -88,6 +89,8 @@ $navItem = static function (string $key, string $label, string $route, string $i
             </button>
 
             <h1 class="ag-page-title flex-grow-1 text-truncate"><?= e($pageTitle) ?></h1>
+
+            <button class="btn btn-sm btn-outline-success d-none" id="agInstallBtn" type="button">Install app</button>
 
             <?php if ($currentUser): ?>
                 <!-- Notifications -->

@@ -54,6 +54,8 @@ if (!headers_sent()) {
         . "form-action 'self'; "
         . "frame-ancestors 'self'; "
         . "base-uri 'self'; "
+        . "manifest-src 'self'; "
+        . "worker-src 'self'; "
         . "object-src 'none'"
     );
 }
