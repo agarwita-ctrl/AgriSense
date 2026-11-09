@@ -162,7 +162,14 @@ const char* DEVICE_ID = "AGRISENSE-ESP32-01";
 // 4.2.0 adds the planting cycle: the server reports `cycle_active` with the
 // settings, and automatic irrigation is paused (and a running pump stopped)
 // whenever it is false. Manual control is never affected by the cycle.
-const char* FIRMWARE_VERSION = "4.2.0";
+//
+// 4.3.0 gives the two soil probes different jobs instead of averaging them:
+//   probe 1 (SOIL1_AO) = DRY-zone probe - decides when to START watering
+//   probe 2 (SOIL2_AO) = WET-zone probe - decides when to STOP watering
+// Place probe 1 where the bed dries out first and probe 2 where water settles
+// (deeper, or at the low end). Either probe failing keeps auto mode from
+// starting, and stops a cycle in progress.
+const char* FIRMWARE_VERSION = "4.3.0";
 
 // --- Temperature (MLX90614) ---------------------------------------------
 // The infrared thermometer reports two figures: the temperature of whatever
@@ -279,7 +286,7 @@ struct State {
   // Calibrated percentages. NAN means "no reading".
   float soil1Pct = NAN;
   float soil2Pct = NAN;
-  float avgPct   = NAN;      // the figure irrigation decisions act on
+  float primaryPct = NAN;    // the headline moisture figure: the DRY-zone probe
 
   // MLX90614 infrared thermometer. NAN means "no reading".
   float   airTemp     = NAN;   // ambient channel - the package temperature
@@ -410,12 +417,12 @@ void loop() {
     readSensors();
 
     Serial.printf("Soil1 AO=%d (%.1f%%) DO=%d | Soil2 AO=%d (%.1f%%) DO=%d | "
-                  "avg=%.1f%% | air=%.1fC leaf=%.1fC%s | pump %s | %s\n",
+                  "primary(dry)=%.1f%% | air=%.1fC leaf=%.1fC%s | pump %s | %s\n",
                   state.soil1Raw, isnan(state.soil1Pct) ? -1.0 : state.soil1Pct,
                   digitalRead(SOIL1_DO),
                   state.soil2Raw, isnan(state.soil2Pct) ? -1.0 : state.soil2Pct,
                   digitalRead(SOIL2_DO),
-                  isnan(state.avgPct) ? -1.0 : state.avgPct,
+                  isnan(state.primaryPct) ? -1.0 : state.primaryPct,
                   isnan(state.airTemp) ? -1.0 : state.airTemp,
                   isnan(state.leafTemp) ? -1.0 : state.leafTemp,
                   state.leafStress ? " STRESS" : "",
@@ -565,22 +572,16 @@ void readMlx() {
   state.leafStress = stressed;
 }
 
-/** Take a full set of readings and compute the working average. */
+/** Take a full set of readings. */
 void readSensors() {
   state.soil1Pct = readProbe(SOIL1_AO, state.soil1Raw);
   state.soil2Pct = readProbe(SOIL2_AO, state.soil2Raw);
 
-  // Average whichever probes are working. With one probe dead the system
-  // carries on using the other rather than stopping altogether.
-  if (!isnan(state.soil1Pct) && !isnan(state.soil2Pct)) {
-    state.avgPct = (state.soil1Pct + state.soil2Pct) / 2.0f;
-  } else if (!isnan(state.soil1Pct)) {
-    state.avgPct = state.soil1Pct;
-  } else if (!isnan(state.soil2Pct)) {
-    state.avgPct = state.soil2Pct;
-  } else {
-    state.avgPct = NAN;      // both probes gone - see handleIrrigation()
-  }
+  // The headline figure is the DRY-zone probe (probe 1), not an average: the
+  // two probes measure different places on purpose. If it is lost the figure
+  // is NAN rather than quietly switching to the wet-zone probe, which would
+  // read as "soil moisture" on the dashboard and mean something else.
+  state.primaryPct = state.soil1Pct;
 
   readMlx();
 }
@@ -616,7 +617,10 @@ void setPump(bool on, const char* triggerType, const char* stopReason, long comm
   writeRelay(on);
   state.pumpRunning = on;
 
-  String moistureText = isnan(state.avgPct) ? String("n/a") : String(state.avgPct, 1) + "%";
+  String moistureText = String("dry ")
+      + (isnan(state.soil1Pct) ? String("n/a") : String(state.soil1Pct, 1) + "%")
+      + " / wet "
+      + (isnan(state.soil2Pct) ? String("n/a") : String(state.soil2Pct, 1) + "%");
 
   if (on) {
     state.pumpStartedAt = millis();
@@ -645,14 +649,20 @@ void setPump(bool on, const char* triggerType, const char* stopReason, long comm
 }
 
 /**
- * Automatic irrigation with hysteresis.
+ * Automatic irrigation with hysteresis, one probe per edge.
  *
- *   moisture <= threshold  -> pump ON
- *   moisture >= target     -> pump OFF
- *   in between             -> keep the current state
+ *   dry-zone probe  <= threshold (and wet zone not yet at target) -> pump ON
+ *   wet-zone probe  >= target                                      -> pump OFF
+ *   in between                                                     -> keep the state
  *
  * The gap between the two set points is what stops the pump chattering
- * on and off as the reading wobbles around a single value.
+ * on and off as the reading wobbles around a single value, and using a
+ * separate probe for each edge means the pump stops when water has actually
+ * reached the wet zone, not when the spot that dried first looks damp.
+ *
+ * Both probes must be readable. Without the dry probe we cannot tell when
+ * watering is needed; without the wet probe we cannot tell when to stop and
+ * would be relying on the runtime limit alone.
  */
 void handleIrrigation() {
   if (!settings.autoIrrigation) {
@@ -670,21 +680,31 @@ void handleIrrigation() {
     return;
   }
 
-  // Safe state: with no moisture reading we cannot tell when to stop, so
-  // we never start, and we stop a cycle that is already running.
-  if (isnan(state.avgPct)) {
+  // Safe state: if either probe is unreadable we never start, and we stop a
+  // cycle that is already running.
+  const float dry = state.soil1Pct;
+  const float wet = state.soil2Pct;
+
+  if (isnan(dry) || isnan(wet)) {
     if (state.pumpRunning) {
-      Serial.println("SAFETY: both soil probes lost while irrigating - stopping the pump");
+      Serial.printf("SAFETY: %s probe lost while irrigating - stopping the pump\n",
+                    isnan(dry) ? "dry-zone" : "wet-zone");
       setPump(false, nullptr, "sensor_failure", -1);
     }
     return;
   }
 
   if (!state.pumpRunning) {
-    if (state.avgPct <= settings.moistureThreshold) {
+    if (dry <= settings.moistureThreshold) {
+      // The wet zone already at target while the dry zone reads dry means a
+      // bad dry probe (air pocket, loose) or water that has not spread yet.
+      // Either way, starting the pump would only waste a cycle.
+      if (wet >= settings.targetMoisture) {
+        Serial.printf("Dry zone %.1f%% but wet zone already at %.1f%% - not starting\n", dry, wet);
+        return;
+      }
       if (!restPeriodSatisfied()) {
-        Serial.printf("Soil dry (%.1f%%) but the rest period has not elapsed - waiting\n",
-                      state.avgPct);
+        Serial.printf("Soil dry (%.1f%%) but the rest period has not elapsed - waiting\n", dry);
         return;
       }
       setPump(true, "automatic", nullptr, -1);
@@ -692,7 +712,7 @@ void handleIrrigation() {
     return;
   }
 
-  if (state.avgPct >= settings.targetMoisture) {
+  if (wet >= settings.targetMoisture) {
     setPump(false, nullptr, "target_reached", -1);
   }
 }
@@ -973,8 +993,8 @@ bool postSensorData(const char* triggerLabel) {
   doc["device_id"] = DEVICE_ID;
 
   // Primary reading, the one the pump decision was made on.
-  if (isnan(state.avgPct)) doc["soil_moisture"] = nullptr;
-  else                     doc["soil_moisture"] = roundf(state.avgPct * 10) / 10.0;
+  if (isnan(state.primaryPct)) doc["soil_moisture"] = nullptr;
+  else                         doc["soil_moisture"] = roundf(state.primaryPct * 10) / 10.0;
 
   // Each probe separately, so a failing probe is visible on the dashboard
   // instead of being hidden inside the average.
@@ -1036,7 +1056,11 @@ bool postIrrigationLog(const char* action, const char* triggerType,
   doc["device_id"] = DEVICE_ID;
   doc["action"]    = action;
 
-  if (!isnan(state.avgPct))   doc["soil_moisture"] = roundf(state.avgPct * 10) / 10.0;
+  // A cycle ends on the wet-zone probe, so that is the figure worth logging
+  // at "stop"; at "start" it is the dry-zone probe that triggered it.
+  const float logged = (strcmp(action, "stop") == 0 && !isnan(state.soil2Pct))
+                         ? state.soil2Pct : state.primaryPct;
+  if (!isnan(logged))         doc["soil_moisture"] = roundf(logged * 10) / 10.0;
   if (triggerType != nullptr) doc["trigger_type"]  = triggerType;
   if (stopReason  != nullptr) doc["stop_reason"]   = stopReason;
   if (commandId >= 0)         doc["command_id"]    = commandId;

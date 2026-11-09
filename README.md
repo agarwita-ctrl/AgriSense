@@ -6,8 +6,8 @@ to water, drives a 12 V pump through a relay, texts the farmer over GSM, and
 reports everything to a PHP/MySQL web dashboard.
 
 ```
-  Soil probe 1 ─┐
-  Soil probe 2 ─┼─► ESP32 ─► threshold logic ─► relay ─► 12 V pump
+  Soil probe 1 (dry zone) ─┐
+  Soil probe 2 (wet zone) ─┼─► ESP32 ─► threshold logic ─► relay ─► 12 V pump
   DHT22        ─┘     │
                       ├── SIM900A ──► SMS alert to the farmer
                       │
@@ -270,10 +270,18 @@ using, and 30 % is only the column default for a device registered from
 scratch:
 
 ```
-  moisture ≤ 20 %  ──► pump ON
-  moisture ≥ 60 %  ──► pump OFF
-  20 % … 60 %      ──► keep the current state
+  dry-zone probe ≤ 20 %  ──► pump ON
+  wet-zone probe ≥ 60 %  ──► pump OFF
+  in between             ──► keep the current state
 ```
+
+The two probes have different jobs. Probe 1 sits where the soil dries first and
+decides when to start; probe 2 sits where water settles and decides when to stop,
+so a cycle ends when water has reached the wet zone rather than when the driest
+spot looks damp. If either probe is lost, automatic watering will not start and a
+running cycle is stopped. If the wet zone is already at target while the dry zone
+reads dry, the pump does not start (usually a loose probe). Needs firmware 4.3.0
+and a device registered with *Two probes*.
 
 The gap between them is the **hysteresis band**. With a single set point the
 pump would switch on and off continuously as the reading wobbled around it;
@@ -286,7 +294,7 @@ Safety rules, all enforced on the device:
 | ---- | --------- |
 | Maximum runtime | The pump stops after `max_pump_runtime` even if the target is never reached. Checked on every loop pass. |
 | Rest between cycles | A new cycle cannot start until `min_cycle_interval` has passed, so water can soak in. |
-| Safe state | If the moisture reading is lost while irrigating, the pump stops and a critical alert is raised. |
+| Safe state | If either soil probe is lost while irrigating, the pump stops and a critical alert is raised; with either probe lost, auto mode will not start. |
 | Relay-off on boot | The relay is driven OFF before anything else in `setup()`, so a reset can never leave the pump running. |
 | Emergency off | A `PUMP_OFF` command is always honoured, whatever mode the device is in. It stays queued until the board confirms it, so a dropped reply delays it rather than losing it. |
 | Settings sanity check | The firmware re-validates configuration received from the server before adopting it. |

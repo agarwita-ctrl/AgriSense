@@ -118,12 +118,12 @@ $config = [
                 <?php if ($dev['probe_count'] >= 2): ?>
                     <div class="ag-probe-row" id="liveProbes">
                         <span class="ag-probe-chip">
-                            <span class="ag-probe-label">P1</span>
+                            <span class="ag-probe-label" title="Probe 1: starts watering">Dry</span>
                             <span class="ag-probe-value<?= $r['soil_moisture_1']['value'] === null ? ' text-danger' : '' ?>"
                                   id="liveProbe1"><?= e(fmt_num($r['soil_moisture_1']['value'], 1, '%')) ?></span>
                         </span>
                         <span class="ag-probe-chip">
-                            <span class="ag-probe-label">P2</span>
+                            <span class="ag-probe-label" title="Probe 2: stops watering">Wet</span>
                             <span class="ag-probe-value<?= $r['soil_moisture_2']['value'] === null ? ' text-danger' : '' ?>"
                                   id="liveProbe2"><?= e(fmt_num($r['soil_moisture_2']['value'], 1, '%')) ?></span>
                         </span>

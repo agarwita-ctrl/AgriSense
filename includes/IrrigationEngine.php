@@ -39,8 +39,11 @@ class IrrigationEngine
         // The hardware in esp32/AgriSense.ino carries two probes. Each is
         // stored in its own column so a single failing probe, or a field
         // that waters unevenly, stays visible instead of being hidden by
-        // the average. `soil_moisture` remains the PRIMARY figure that
-        // irrigation decisions, charts and thresholds use.
+        // anything else. `soil_moisture` remains the PRIMARY figure that
+        // charts and thresholds use. On a two-probe device the probes have
+        // different jobs - probe 1 is the DRY-zone probe that triggers
+        // watering, probe 2 the WET-zone probe that ends it - so the primary
+        // figure is probe 1, never an average of the two.
         $soilRaw  = self::readRaw($payload, 'soil_raw', $warnings);
         $soilRaw2 = self::readRaw($payload, 'soil_raw_2', $warnings);
 
@@ -61,9 +64,16 @@ class IrrigationEngine
         $moisture = self::readPercent($payload, 'soil_moisture', $warnings);
 
         if ($moisture === null) {
-            $available = array_values(array_filter([$probe1, $probe2], static fn ($v) => $v !== null));
-            if ($available) {
-                $moisture = round(array_sum($available) / count($available), 2);
+            if ((int) ($device['probe_count'] ?? 1) >= 2) {
+                // Dry probe lost means no primary reading. Falling back to the
+                // wet-zone probe would put a different measurement on the
+                // dashboard under the same label.
+                $moisture = $probe1;
+            } else {
+                $available = array_values(array_filter([$probe1, $probe2], static fn ($v) => $v !== null));
+                if ($available) {
+                    $moisture = round(array_sum($available) / count($available), 2);
+                }
             }
         } elseif ($probe1 === null && $probe2 === null) {
             // Single-probe payload: the one reading it sent is probe 1.
@@ -254,14 +264,15 @@ class IrrigationEngine
         $failed = [];
         if ($values['soil_moisture'] === null) {
             $failed[] = 'soil moisture';
-        } elseif ($probes >= 2) {
-            // With two probes fitted, one of them dropping out still leaves
-            // a usable average - but it is worth saying so.
-            if ($values['soil_moisture_1'] === null) {
-                $failed[] = 'soil probe 1';
+        }
+        // With two probes each has its own job (dry zone starts watering, wet
+        // zone ends it), so losing either one stops automatic irrigation.
+        if ($probes >= 2) {
+            if ($values['soil_moisture_1'] === null && $values['soil_moisture'] !== null) {
+                $failed[] = 'the dry-zone probe';
             }
             if ($values['soil_moisture_2'] === null) {
-                $failed[] = 'soil probe 2';
+                $failed[] = 'the wet-zone probe';
             }
         }
         // Only complain about a measurement the board is actually fitted to
@@ -278,26 +289,6 @@ class IrrigationEngine
             $failed[] = 'canopy temperature';
         }
 
-        // Two probes in the same bed should broadly agree. A large, sustained
-        // gap usually means one has worked loose or is sitting in an air
-        // pocket, and the average it feeds is no longer trustworthy.
-        if ($probes >= 2
-            && $values['soil_moisture_1'] !== null
-            && $values['soil_moisture_2'] !== null) {
-            $gap = abs($values['soil_moisture_1'] - $values['soil_moisture_2']);
-            if ($gap >= 25.0) {
-                Alert::raiseThrottled(
-                    $deviceId,
-                    'probe_mismatch',
-                    sprintf('The two soil probes on %s disagree by %.1f points (%.1f%% and %.1f%%). '
-                        . 'Check that both are firmly seated.',
-                        $name, $gap, $values['soil_moisture_1'], $values['soil_moisture_2']),
-                    'warning',
-                    3600
-                );
-            }
-        }
-
         if ($failed) {
             Alert::raiseThrottled(
                 $deviceId,
@@ -309,11 +300,12 @@ class IrrigationEngine
 
             // Losing the moisture sensor while irrigating is the dangerous
             // case: the firmware stops the pump and we record why.
-            if ($values['soil_moisture'] === null && $values['pump_status'] === 'ON') {
+            $lostWet = $probes >= 2 && $values['soil_moisture_2'] === null;
+            if (($values['soil_moisture'] === null || $lostWet) && $values['pump_status'] === 'ON') {
                 Alert::raiseThrottled(
                     $deviceId,
                     'safe_state',
-                    $name . ' lost its soil moisture reading while the pump was running. '
+                    $name . ' lost a soil moisture probe while the pump was running. '
                         . 'Irrigation is being stopped as a precaution.',
                     'critical',
                     300

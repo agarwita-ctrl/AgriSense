@@ -66,7 +66,7 @@ class SensorController extends Controller
             // that one CSV layout covers a mixed fleet and a spreadsheet
             // built on last month's export still opens this month's.
             ['ID', 'Device', 'Device code', 'Recorded at', 'Soil moisture (%)',
-             'Probe 1 (%)', 'Probe 2 (%)', 'Probe 1 raw (ADC)', 'Probe 2 raw (ADC)',
+             'Dry probe (%)', 'Wet probe (%)', 'Probe 1 raw (ADC)', 'Probe 2 raw (ADC)',
              'Air temperature (C)', 'Canopy temperature (C)', 'Canopy - air (C)',
              'Humidity (%)', 'Pump', 'Mode', 'Source'],
             array_map(static fn (array $r): array => [

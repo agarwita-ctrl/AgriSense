@@ -97,9 +97,9 @@ Upload one set of readings. This is the endpoint the firmware calls most.
 | Field | Type | Notes |
 | ----- | ---- | ----- |
 | `device_id` / `device_code` | string | Either spelling. Optional, but checked against the API key when present |
-| `soil_moisture` | number \| null | **Primary** reading, 0–100 — the figure the pump decision was made on. With two probes this is their average |
-| `soil_moisture_1` | number \| null | Probe 1 percentage |
-| `soil_moisture_2` | number \| null | Probe 2 percentage; omit on a single-probe device |
+| `soil_moisture` | number \| null | **Primary** reading, 0–100. With two probes this is the dry-zone probe (probe 1), not an average |
+| `soil_moisture_1` | number \| null | Probe 1 percentage — the **dry-zone** probe, which starts watering |
+| `soil_moisture_2` | number \| null | Probe 2 percentage — the **wet-zone** probe, which stops watering; omit on a single-probe device |
 | `soil_raw` | int | Probe 1 raw ADC, 0–4095. Calibrated server-side if the percentage is absent |
 | `soil_raw_2` | int | Probe 2 raw ADC |
 | `temperature` | number \| null | **Air** temperature in °C, plausible range −10 to 60 |
@@ -136,11 +136,13 @@ here, so an infrared sensor that has drifted round to face bare soil cannot
 flood a field.
 
 **Working out the primary reading.** If `soil_moisture` is given it is used
-as-is — the device may average the probes itself, and that is the number it
-acted on. If it is absent, the server averages whichever probe percentages
-were sent, calibrating raw counts first. A payload carrying only
-`soil_moisture` and `soil_moisture_2` (the average plus the second probe)
-has probe 1 derived from the two, since the average is exactly their mean.
+as-is. If it is absent: on a two-probe device it becomes `soil_moisture_1`
+(the dry-zone probe), and is null if that probe failed — it never falls back to
+the wet-zone probe. On a one-probe device the server averages whichever probe
+percentages were sent, calibrating raw counts first. A payload carrying only
+`soil_moisture` and `soil_moisture_2` has probe 1 derived as
+`2 × soil_moisture − soil_moisture_2`, which is only right for firmware older than
+4.3.0 that sent an average.
 
 **A failed sensor read must be sent as `null`, not as `0` or `-999`.** A null is
 stored as SQL `NULL`, kept out of every average, and shown on the dashboard as

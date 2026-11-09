@@ -92,12 +92,13 @@ $action = $isNew
                                 One probe
                             </option>
                             <option value="2" <?= (int) ($device['probe_count'] ?? 1) === 2 ? 'selected' : '' ?>>
-                                Two probes &mdash; readings averaged, each logged separately
+                                Two probes &mdash; dry-zone probe starts watering, wet-zone probe stops it
                             </option>
                         </select>
                         <div class="ag-field-help">
-                            With two probes the primary reading is their average, and each probe is
-                            also charted on its own so a loose or failed probe is visible.
+                            With two probes, probe 1 sits where the soil dries first and starts watering;
+                            probe 2 sits where water settles and stops it. The primary reading is probe 1,
+                            and automatic watering pauses if either probe fails.
                         </div>
                         <?= $err('probe_count') ?>
                     </div>

@@ -66,11 +66,17 @@ output for its decisions; DO is read only for the serial log, because its
 trip point is set by a trimpot on the sensor board and cannot be calibrated
 from software.
 
-**Place the two probes apart** — different corners of the bed, or one at
-each end of a row. Their average is what the pump acts on, so two probes
-sitting side by side gives you the reliability of one. The dashboard raises
-a `probe_mismatch` warning when they disagree by more than 25 points, which
-usually means one has worked loose.
+**The two probes have different jobs** (firmware 4.3.0 and later):
+
+- **Probe 1 (GPIO34) is the dry-zone probe.** Put it where the bed dries out
+  first. When it falls to the dry threshold, watering starts.
+- **Probe 2 (GPIO35) is the wet-zone probe.** Put it where water settles —
+  deeper, or at the low end of the bed. When it reaches the target, watering
+  stops.
+
+If either probe is lost, automatic watering will not start, and a cycle in
+progress is stopped. The two readings are expected to differ, so there is no
+disagreement alert.
 
 ### DHT22 → ESP32
 
@@ -246,7 +252,7 @@ Both ends always agree because they use the same formula.
   vegetables.
 - Keep them about 20 cm away from where water is delivered, so they measure
   the soil rather than the stream from the hose.
-- Separate the two probes — opposite corners of the bed is ideal.
+- Probe 1 (dry zone) goes where the soil dries first; probe 2 (wet zone) goes lower or deeper, where water collects. Keep them apart.
 - Firm the soil around each probe. An air gap reads as permanently dry,
   which would keep the pump running.
 - Run cables up a stake and into the enclosure through a gland at the
@@ -279,7 +285,7 @@ are damaged within seconds without it.
 | Symptom | Likely cause |
 | ------- | ------------ |
 | A probe reads 0 % or 100 % constantly | Probe on an ADC2 pin, or unplugged. The firmware reports raw values below 20 or above 4080 as a failed read rather than as dry soil, so it will not start the pump on a dead probe |
-| The two probes disagree wildly | One has worked loose or sits in an air pocket. The dashboard raises `probe_mismatch` above a 25-point gap |
+| The pump never starts although the soil is dry | Either probe is unreadable, or the wet-zone probe already reads at or above the target (check its placement and calibration) |
 | Readings drift over weeks | Resistive probe corrosion — see the note in §1 |
 | Temperature and humidity read `failed` | DHT22 lead too long, missing pull-up, or wrong `DHT_TYPE` |
 | Pump runs as soon as power is applied | Relay is active-LOW: set `RELAY_ACTIVE_HIGH` to `false`. Also check you used NO, not NC |

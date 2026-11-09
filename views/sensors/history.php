@@ -191,10 +191,10 @@ unset($exportQuery['page'], $exportQuery['r']);
             ?>
             <tr>
                 <th><?= $sortLink('recorded_at', 'Date / time') ?></th>
-                <th class="num"><?= $sortLink('soil_moisture', $twoProbes ? 'Soil (avg)' : 'Soil moisture') ?></th>
+                <th class="num"><?= $sortLink('soil_moisture', $twoProbes ? 'Soil (dry zone)' : 'Soil moisture') ?></th>
                 <?php if ($twoProbes): ?>
-                    <th class="num"><?= $sortLink('soil_moisture_1', 'Probe 1') ?></th>
-                    <th class="num"><?= $sortLink('soil_moisture_2', 'Probe 2') ?></th>
+                    <th class="num"><?= $sortLink('soil_moisture_1', 'Dry probe') ?></th>
+                    <th class="num"><?= $sortLink('soil_moisture_2', 'Wet probe') ?></th>
                 <?php endif; ?>
                 <th class="num">Raw ADC</th>
                 <?php if ($showTemp): ?>
@@ -336,23 +336,23 @@ unset($exportQuery['page'], $exportQuery['r']);
 
         var datasets = [
             {
-                label: twoProbes ? 'Soil moisture, average (%)' : 'Soil moisture (%)',
+                label: twoProbes ? 'Soil moisture, dry zone (%)' : 'Soil moisture (%)',
                 data: rows.map(function (r) { return r.soil_moisture === null ? null : Number(r.soil_moisture); }),
                 borderColor: p.moisture, backgroundColor: p.moisture,
                 borderWidth: 2, tension: .32, pointRadius: dot, spanGaps: true, yAxisID: 'y'
             }
         ];
 
-        // Each probe as a thin line, so a drifting or dead probe stands out
-        // against the average the pump actually acts on.
+        // Each probe as a thin line: the dry-zone probe starts watering, the
+        // wet-zone probe ends it, so a dead or drifting probe stands out.
         if (twoProbes) {
             datasets.push({
-                label: 'Probe 1 (%)',
+                label: 'Dry probe (%)',
                 data: rows.map(function (r) { return r.soil_moisture_1 === null ? null : Number(r.soil_moisture_1); }),
                 borderColor: 'rgba(2,136,209,.45)', backgroundColor: 'rgba(2,136,209,.45)',
                 borderWidth: 1, tension: .32, pointRadius: dot, spanGaps: true, yAxisID: 'y'
             }, {
-                label: 'Probe 2 (%)',
+                label: 'Wet probe (%)',
                 data: rows.map(function (r) { return r.soil_moisture_2 === null ? null : Number(r.soil_moisture_2); }),
                 borderColor: 'rgba(141,110,79,.55)', backgroundColor: 'rgba(141,110,79,.55)',
                 borderWidth: 1, tension: .32, pointRadius: dot, spanGaps: true, yAxisID: 'y'
