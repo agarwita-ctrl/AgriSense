@@ -11,6 +11,7 @@ require_once __DIR__ . '/includes/bootstrap.php';
 
 require_once APP_ROOT . '/controllers/Controller.php';
 require_once APP_ROOT . '/controllers/AuthController.php';
+require_once APP_ROOT . '/controllers/HomeController.php';
 require_once APP_ROOT . '/controllers/DashboardController.php';
 require_once APP_ROOT . '/controllers/SensorController.php';
 require_once APP_ROOT . '/controllers/IrrigationController.php';
@@ -46,8 +47,8 @@ $GLOBALS['CURRENT_ROUTE'] = $route === '' ? 'dashboard' : $route;
 // Route table:  route => [GET handler, POST handler]
 // ---------------------------------------------------------------------
 $routes = [
-    ''                      => ['GET' => [DashboardController::class, 'index']],
-    'dashboard'             => ['GET' => [DashboardController::class, 'index']],
+    ''                      => ['GET' => [HomeController::class, 'index']],
+    'dashboard'            => ['GET' => [DashboardController::class, 'index']],
     'monitor'               => ['GET' => [DashboardController::class, 'monitor']],
 
     'login'                 => ['GET'  => [AuthController::class, 'showLogin'],
